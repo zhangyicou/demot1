@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_package = "com.example.demot1.grpc.dto.rpc";
+import "helloworldmodle.proto";
+// The greeting service definition.
+service HelloWorld {
+  // Sends a greeting 一问一答
+  rpc SayHello (HelloRequest) returns (HelloReply);
+  //一次请求/流式响应
+  rpc listen(HelloRequest) returns(stream HelloReply);
+  //流失请求/一次响应
+  rpc speak(stream HelloRequest) returns(HelloReply){}
+  //流式请求/流失响应
+  rpc chat(stream HelloRequest) returns(stream HelloReply){}
+}

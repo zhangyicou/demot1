@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+日志级别
+trace： 是追踪，就是程序推进以下，你就可以写个trace输出，所以trace应该会特别多，不过没关系，我们可以设置最低日志级别不让他输出。
+debug： 调试么，我一般就只用这个作为最低级别，trace压根不用。是在没办法就用eclipse或者idea的debug功能就好了么。
+info： 输出一下你感兴趣的或者重要的信息，这个用的最多了。
+warn： 有些信息不是错误信息，但是也要给程序员的一些提示，类似于eclipse中代码的验证不是有error 和warn（不算错误但是也请注意，比如以下depressed的方法）。
+error： 错误信息。用的也比较多。
+fatal： 级别比较高了。重大错误，这种级别你可以直接停止程序了，是不应该出现的错误么！不用那么紧张，其实就是一个程度的问题。
+日志级别以及优先级排序: OFF > FATAL > ERROR > WARN > INFO > DEBUG > TRACE > ALL
+如果设置为WARN，则低于WARN的信息都不会输出。对于Loggers中level的定义同样适用。
+ -->
+<configuration status="TRACE">
+
+    <!--定义日志存放位置和格式的属性，appenders中就可以引用-->
+    <properties>
+        <property name="logPath">../logs/log4j2/demot1/</property>
+        <!-- 输出日志的格式 -->
+        <!--
+                %d{yyyy-MM-dd HH:mm:ss, SSS} : 日志生产时间
+                %p : 日志输出格式
+                %c : logger的名称
+                %m : 日志内容，即 logger.info("message")
+                %n : 换行符
+                %C : Java类名
+                %L : 日志输出所在行数
+                %M : 日志输出所在方法名
+                hostName : 本地机器名
+                hostAddress : 本地ip地址 -->
+        <property name="pattern">%highlight{ %-d{yyyy-MM-dd HH:mm:ss.SS} %p %l %m%n}</property>
+    </properties>
+
+    <!--先定义所有的appender(输出器) -->
+    <appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <!--只接受程序中INFO级别的日志进行处理 -->
+            <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY" />
+            <PatternLayout>
+                <pattern>${pattern}</pattern>
+            </PatternLayout>
+        </Console>
+
+        <!--处理INFO级别的日志，并把该日志放到logs/info.log文件中-->
+        <RollingRandomAccessFile name="RollingFileInfo" fileName="./${logPath}/info.log"
+                     filePattern="${logPath}/$${date:yyyy-MM}/info-%d{yyyy-MM-dd}-%i.log.gz" append="false">
+            <Filters>
+                <!--只接受INFO级别的日志，其余的全部拒绝处理-->
+                <ThresholdFilter level="INFO"/>
+                <ThresholdFilter level="WARN" onMatch="DENY" onMismatch="NEUTRAL"/>
+            </Filters>
+            <SizeBasedTriggeringPolicy size="10 GB"/>
+            <!-- 设置同类型日志,同一文件夹下可以存放的数量,如果不设置此属性则默认存放7个文件 -->
+            <DefaultRolloverStrategy max="30" />
+            <PatternLayout>
+                <pattern>${pattern}</pattern>
+            </PatternLayout>
+        </RollingRandomAccessFile>
+
+        <RollingRandomAccessFile name="FILE_TRACE"
+                                 fileName="./${logPath}/trace.log"
+                                 immediateFlush="false"
+                                 filePattern="./${logPath}/archive/history_trace.%d{yyyy-MM-dd}.%i.zip"
+                                 bufferSize="1048576">
+
+            <PatternLayout pattern="%d{${LOG_DATEFORMAT_PATTERN}}\t-\t%m%n" charset="${CHARSET}"/>
+
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="500 MB"/>
+            </Policies>
+
+            <ThresholdFilter level="INFO" onMatch="ACCEPT" onMismatch="DENY"/>
+
+            <DefaultRolloverStrategy max="100"/>
+        </RollingRandomAccessFile>
+
+
+        <Async name="ASYNC_FILE_TRACE">
+            <AppenderRef ref="FILE_TRACE"/>
+        </Async>
+    </appenders>
+    <!--然后定义logger，只有定义了logger并引入的appender，appender才会生效 -->
+    <loggers>
+        <!--<AsyncLogger name = "AsyncRollingFileInfo" level="trace" includeLocation="true">-->
+            <!--<AppenderRef ref="RollingFileInfo"/>-->
+        <!--</AsyncLogger>-->
+
+        <!--建立一个默认的Root的logger，记录大于level高于warn的信息，如果这里的level高于Appenders中的，则Appenders中也是以此等级为起点，比如，这里level="fatal"，则Appenders中只出现fatal信息 -->
+        <!-- 生产环境level>=warn -->
+        <root level="INFO" includeLocation="false">
+            <appender-ref ref="Console"/>
+            <appender-ref ref="RollingFileInfo"/>
+        </root>
+
+        <!-- 将logger中的 additivity 属性配置为 false，则这个logger不会将日志流反馈到root中 -->
+        <AsyncLogger name="TRACER" level="info" additivity="false" includeLocation="false">
+            <AppenderRef ref="ASYNC_FILE_TRACE"/>
+        </AsyncLogger>
+
+        <!--第三方日志系统 -->
+        <!--log4j2 自带过滤日志-->
+        <Logger name="org.apache.catalina.startup.DigesterFactory" level="error" />
+        <Logger name="org.apache.catalina.util.LifecycleBase" level="error" />
+        <Logger name="org.apache.coyote.http11.Http11NioProtocol" level="warn" />
+        <Logger name="org.apache.sshd.common.util.SecurityUtils" level="warn"/>
+        <Logger name="org.apache.tomcat.util.net.NioSelectorPool" level="warn" />
+        <Logger name="org.crsh.plugin" level="warn" />
+        <Logger name="org.crsh.ssh" level="warn"/>
+        <Logger name="org.eclipse.jetty.util.component.AbstractLifeCycle" level="error" />
+        <Logger name="org.hibernate.validator.internal.util.Version" level="warn" />
+        <Logger name="org.springframework.boot.actuate.autoconfigure.CrshAutoConfiguration" level="warn"/>
+        <Logger name="org.springframework.boot.actuate.endpoint.jmx" level="warn"/>
+        <Logger name="org.thymeleaf" level="warn"/>
+        <!--过滤掉spring和mybatis的一些无用的DEBUG信息，也可以在spring boot 的logging.level.org.springframework=FATAL设置-->
+        <Logger name="org.springframework" level="INFO"/>
+        <Logger name="org.mybatis" level="INFO"/>
+        <Logger name="org.apache.http" level="warn" />
+    </loggers>
+</configuration>
+
+<!--
+日志输出方式
+sync	        同步打印日志，日志输出与业务逻辑在同一线程内，当日志输出完毕，才能进行后续业务逻辑操作
+Async Appender	异步打印日志，内部采用ArrayBlockingQueue，对每个AsyncAppender创建一个线程用于处理日志输出。
+Async Logger	异步打印日志，采用了高性能并发框架Disruptor，创建一个线程用于处理日志输出。
+-->

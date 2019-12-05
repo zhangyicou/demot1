@@ -1,5 +1,6 @@
 package com.example.demot1;
 
+import com.example.demot1.event.OrderEvent;
 import com.example.demot1.log.log4j2.LogHandler;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -8,11 +9,16 @@ import com.example.demot1.config.ServerConfig;
 import com.example.demot1.grpc.service.GreeterImplService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.event.SimpleApplicationEventMulticaster;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.concurrent.CountDownLatch;
@@ -22,9 +28,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 @Slf4j
+@EnableAsync
 @EnableScheduling
 @SpringBootApplication
-public class Demot1Application implements CommandLineRunner {
+public class Demot1Application implements CommandLineRunner, ApplicationContextAware {
 	@Autowired
 	private GreeterImplService greeterService;
 	@Autowired
@@ -34,6 +41,7 @@ public class Demot1Application implements CommandLineRunner {
 	private int grpcSwitch;
 	@Value("${switch.log4j2:0}")
 	private int log4j2Switch;
+	private ApplicationContext applicationContext;
 
 	public static void main(String[] args) {
 
@@ -42,6 +50,10 @@ public class Demot1Application implements CommandLineRunner {
 		System.setProperty("AsyncLogger.RingBufferSize", "262144");
 		System.setProperty("AsyncLoggerConfig.RingBufferSize", "262144");
 		SpringApplication.run(Demot1Application.class, args);
+
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			System.out.println("---close------------");
+		}));
 	}
 
 	@Override
@@ -75,5 +87,16 @@ public class Demot1Application implements CommandLineRunner {
 			latch.await();
 			log.info("thread = {}, msgSum = {}, time = {}", thread, msgSum, System.currentTimeMillis() - startTime);
 		}
+
+		for(int i = 0; i < 10; i++){
+			long startTime = System.currentTimeMillis();
+			applicationContext.publishEvent(OrderEvent.builder().orderId(i).price(1.1 + i).size(i * 1.1 * 0.2).build());
+			log.info("i = {}, delay = {}", i, System.currentTimeMillis() - startTime);
+		}
+	}
+
+	@Override
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
 	}
 }
